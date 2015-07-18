@@ -36,8 +36,8 @@ is available here:
 
      https://pypi.python.org/pypi/dbfpy
 
-but not through `pip install dbfpy`. Its installation, after its downloading,
-can be minimal like:
+but is not available through `pip install dbfpy`. Its installation, after
+downloading its source code (follow url above), can be minimal like:
 
      cd <extracted-dbfpy>/dbfpy-2.3.0/
      python  setup.py  build
