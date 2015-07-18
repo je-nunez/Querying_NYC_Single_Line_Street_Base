@@ -1,7 +1,7 @@
 # Querying NYC Single Line Street Base
 
-Querying the New York City Department of City Planning's Single Line Street
-Base. The script:
+Querying the New York City Department of City Planning's Open Data Single
+Line Street Base. The script:
 
      etl_NYC_Lion_Geodb_to_Shapefile.sh
 
@@ -9,9 +9,9 @@ downloads and does an ETL of this File GeoDatabase to a custom 'shapefile'.
 
 # Description
 
-This database is very helpful in an explorarion of the speed of the traffic,
-the volume counts, etc. It is downloaded from the `BYTES of the Big APPLE`
-web-site:
+NYC Open Data initiative offers this GeoDatabase that is very helpful in
+an explorarion of the speed of the traffic, the volume counts, etc. It is
+downloaded from the `BYTES of the Big APPLE` web-site:
 
     http://www.nyc.gov/html/dcp/html/bytes/dwnlion.shtml
 
@@ -52,8 +52,9 @@ into the GIS `Shapefile` format.
 
 The script `etl_NYC_Lion_Geodb_to_Shapefile.sh` does this.
 
-The GIS 'Shapefile' is composed by several files, and one of the mandatory
-files is in dBase IV DBF format: here there is an example of a 'Shapefile':
+The ESRI 'Shapefile' format is composed by several files, and one of the
+mandatory files is in dBase IV DBF format: here there is an example of a
+'Shapefile':
 
      http://mapserver.org/input/vector/shapefiles.html
 
