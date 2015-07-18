@@ -1,7 +1,11 @@
 # Querying NYC Single Line Street Base
 
 Querying the New York City Department of City Planning's Single Line Street
-Base
+Base. The script:
+
+     etl_NYC_Lion_Geodb_to_Shapefile.sh
+
+downloads and does an ETL of this File GeoDatabase to a custom 'shapefile'.
 
 # Description
 
@@ -16,14 +20,40 @@ value-domains:
 
     http://www.nyc.gov/html/dcp/pdf/bytes/lion_metadata.pdf?v=15b
 
+# Required Libraries
+
+We need programs in the `gdal` yum package (RedHat) or `gdal-bin` (Debian)
+or `gdal` (`brew` in Mac OS/X).
+
+     yum install gdal
+     
+     apt-get install gdal
+     
+     brew install gdal
+
+We also need the `dbfpy` Python package to verify the dBase DBF file. It
+is available here:
+
+     https://pypi.python.org/pypi/dbfpy
+
+but not through `pip install dbfpy`. Its installation, after its downloading,
+can be minimal like:
+
+     cd <extracted-dbfpy>/dbfpy-2.3.0/
+     python  setup.py  build
+     python  setup.py  install
+
 # Files
 
 We need to do an `ETL` (Extraction-Transform-Load) phase on the geographical
 database provided by the `BYTES of the Big APPLE` web-site, because it is in
 the propietary `ESRI File Geodatabase` format, which need to be transformed
-into the GIS `Shapefile` format. The GIS 'Shapefile' is composed by several
-files, and one of the mandatory files is in dBase IV DBF format: here there
-is an example of a 'Shapefile':
+into the GIS `Shapefile` format.
+
+The script `etl_NYC_Lion_Geodb_to_Shapefile.sh` does this.
+
+The GIS 'Shapefile' is composed by several files, and one of the mandatory
+files is in dBase IV DBF format: here there is an example of a 'Shapefile':
 
      http://mapserver.org/input/vector/shapefiles.html
 
