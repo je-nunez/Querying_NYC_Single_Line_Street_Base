@@ -68,10 +68,35 @@ fi
 
 echo "Running the ETL properly using the SQL: '$ETL_SQL_select_transform'"
 
+# This is the Source Coordinate System: according to page 4 of:
+#
+#    http://www.nyc.gov/html/dcp/pdf/bytes/lion_metadata.pdf?v=15b
+#
+# The New York City LION database is in "EPSG:2263" coordinates for
+# the geometrical projection
+# (This can also be found doing a `ogrinfo -al -so ./nyc_src_db/lion.gdb/`
+# which is more handy to give summary of fields in NYC LION, which then
+# the documentation URL above explains)
+
+SRC_COORD=EPSG:2263
+
+# The destination coordinate system is WSG84 (World Geodetic System 1984)
+
+DST_COORD=EPSG:4326
+
+# Note: The reason we need to project coordinates-systems because, for the
+# data mining on the traffic, we need to join different Open Data sources of
+# New York City, like the New York City's Department of Transportation
+# Real-Time Link Speed, which are in other coordinate systems:
+#
+#   https://data.cityofnewyork.us/Transportation/Real-Time-Traffic-Speed-Data/xsat-x5sa
+#
+
 # ogr2ogr belongs to the 'gdal' yum package (Fedora) and 'gdal-bin' (Debian)
 # Mac users:  brew install gdal
-#
+
 ogr2ogr nyc_data_exploration.shp ../nyc_src_db/lion.gdb/ \
+        -s_srs "$SRC_COORD" -t_srs "$DST_COORD" \
         -sql "$ETL_SQL_select_transform"
 
 # The '.shp' contains the geographical attributes
@@ -83,8 +108,10 @@ ogrinfo  nyc_data_exploration.shp
 echo "Verifying if resulting dBase DBF file in shapefile has valid values... "
 ../view_dbf.py  nyc_data_exploration.dbf >/dev/null
 
-lat=40.785091
-long=-73.968285
+# Plot the New York City's LION Single Line Street Base Map
+echo "Plotting the New York City's LION Single Line Street Base Map... "
+cd ..
+./plot_NYC_LION_Geodb.py
 
 echo "ETL finished OK."
 
