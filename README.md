@@ -1,7 +1,7 @@
 # Querying NYC Single Line Street Base
 
-Querying the New York City Department of City Planning's Open Data Single
-Line Street Base. The script:
+Querying the New York City Department of City Planning's Open Data LION
+Single Line Street Base. The script:
 
      etl_NYC_Lion_Geodb_to_Shapefile.sh
 
@@ -31,6 +31,8 @@ or `gdal` (`brew` in Mac OS/X).
      
      brew install gdal
 
+(These belong to the [Geospatial Data Abstraction Library](http://www.gdal.org/))
+
 We also need the `dbfpy` Python package to verify the dBase DBF file. It
 is available here:
 
@@ -42,6 +44,14 @@ downloading its source code (follow url above), can be minimal like:
      cd <extracted-dbfpy>/dbfpy-2.3.0/
      python  setup.py  build
      python  setup.py  install
+
+For the last step of the ETL, doing a test plot of its result on the
+New York City LION GeoDB, `matplotlib` and `Basemap` in Python are
+necessary:
+
+     http://matplotlib.org/users/installing.html
+
+     http://matplotlib.org/basemap/users/installing.html
 
 # Files
 
@@ -77,4 +87,16 @@ This is a driver of GDAL (Geospatial Data Abstraction Library) to open ESRI
 FGDB files:
 
      http://www.gdal.org/drv_filegdb.html
+
+# A sample result
+
+The ETL gives several results. First, from the download of the NYC LION
+Single Line Street Base, it obtains the `shapefile` according to SQL
+`select` statement simplifying that input database.
+
+Second, it verifies the associated dBase IV dbf file of the shapefile,
+and plots this resulting LION using `matplotlib` and `basemap` in Python,
+obtaining an image like:
+
+[sample New York City LION plot using matplotlib and basemap](a_result_NYC_LION_matplotlib_basemap.png)
 
