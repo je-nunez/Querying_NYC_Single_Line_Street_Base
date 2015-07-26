@@ -98,5 +98,5 @@ Second, it verifies the associated dBase IV dbf file of the shapefile,
 and plots this resulting LION using `matplotlib` and `basemap` in Python,
 obtaining an image like:
 
-[sample New York City LION plot using matplotlib and basemap](a_result_NYC_LION_matplotlib_basemap.png)
+![sample New York City LION plot using matplotlib and basemap](/a_result_NYC_LION_matplotlib_basemap.png?raw=true "sample New York City LION plot using matplotlib and basemap")
 
