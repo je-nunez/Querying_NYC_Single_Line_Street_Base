@@ -24,7 +24,7 @@ m = Basemap(llcrnrlon=LOW_LEFT_CORNR_LONGITUDE,
             urcrnrlon=UP_RIGHT_CORNER_LONGITUDE,
             urcrnrlat=UP_RIGHT_CORNER_LATITUDE,
             ellps='WGS84',
-            resolution='h', area_thresh=1000)
+            resolution='h', area_thresh=1)
 
 m.drawcoastlines()
 m.fillcontinents(color='green')
