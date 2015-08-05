@@ -100,3 +100,25 @@ obtaining an image like:
 
 ![sample New York City LION plot using matplotlib and basemap](/a_result_NYC_LION_matplotlib_basemap.png?raw=true "sample New York City LION plot using matplotlib and basemap")
 
+There is another script, `dump_NYC_LION_street_intersections.scala`
+(Scala using the GeoScript and the GeoTools libraries), which dumps
+the fields imported from the LION db into the `shapefile` (like
+-it could apply a string filter on the `street` name, or a polygonal
+filter by the intersection of that filtering polygon to the
+`the_geom` `MULTILINESTRING` -this polygonal filtering, in turn,
+is useful for the Data Mining on the real-time speed of the traffic):
+
+     ...
+     the_geom = MULTILINESTRING ((-73.90478740690548 40.87892363753028,
+                                  -73.90442743514292 40.87943261859585))
+     segmentid = 0079707
+     segmenttyp = U
+     segcount = 1
+     XFrom = 1010580
+     YFrom = 259508
+     XTo = 1010679
+     YTo = 259693
+     ArcCenterX = 0
+     ArcCenterY = 0
+     street = BROADWAY
+
