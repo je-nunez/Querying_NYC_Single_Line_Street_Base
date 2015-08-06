@@ -9,10 +9,12 @@ import org.geoscript.io.Sink
 import org.geoscript.viewer.Viewer._
 import org.geoscript.projection._
 import java.awt.Rectangle
+import org.geoscript.geometry._
 
 
 
-def dump_nyc_lion_street_db(location_LION_shapefile: String) {
+def dump_nyc_lion_street_db(location_LION_shapefile: String,
+                            filter_polygonal_area: String) {
 
     // Open the filename as a ESRI Shapefile
 
@@ -38,6 +40,11 @@ def dump_nyc_lion_street_db(location_LION_shapefile: String) {
      *    ArcCenterY = 0
      *    street = BROADWAY
      */
+
+    var polygonal_constraint: Geometry = null;
+    if (filter_polygonal_area != null) {
+       polygonal_constraint = Geometry.fromWKT(filter_polygonal_area)
+    }
 
     for (f <- lion_shp.features.toArray()) {
 
@@ -94,7 +101,9 @@ def dump_nyc_lion_street_db(location_LION_shapefile: String) {
 
     // convert the Styled Layer Descriptor XML to a GeoScript style
 
-    val myStyle = io.SLD.read(org.geoscript.io.Source.string(sldXML.mkString(" ")))
+    val myStyle = org.geoscript.style.io.SLD.read(
+                       org.geoscript.io.Source.string(sldXML.mkString(" "))
+                  )
 
     val frame = (1024, 1024)
     val rectangle = new Rectangle(0, 0, 1024, 1024)
@@ -129,7 +138,7 @@ def dump_nyc_lion_street_db(location_LION_shapefile: String) {
  *
  */
 
-def main() {
+def main(cmdl_args: Array[String]) {
 
      // Dump the New York City's Department of City Planning
      // LION GeoDB Single Line Street Base. The LION Street database should
@@ -137,8 +146,11 @@ def main() {
 
      val nyc_lion_street_db = "etl_dest_shp/nyc_data_exploration.shp"
 
+     var polygonal_constraint: String = null
+     if (cmdl_args.length >= 1)
+         polygonal_constraint = cmdl_args(0)
 
-     dump_nyc_lion_street_db(nyc_lion_street_db)
+     dump_nyc_lion_street_db(nyc_lion_street_db, polygonal_constraint)
 }
 
 
@@ -146,5 +158,5 @@ def main() {
  * Entry point
  */
 
-main
+main(args)
 
