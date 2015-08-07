@@ -103,9 +103,9 @@ obtaining an image like:
 There is another script, `dump_NYC_LION_street_intersections.scala`
 (Scala using the GeoScript and the GeoTools libraries), which dumps
 the fields imported from the LION db into the `shapefile` (like
--it could apply a string filter on the `street` name, or a polygonal
-filter by the intersection of that filtering polygon to the
-`the_geom` `MULTILINESTRING` -this polygonal filtering, in turn,
+-it could apply a regular-expression filter on the `street` name, or
+a polygonal filter by the intersection of that filtering polygon to
+the `the_geom` `MULTILINESTRING` -this polygonal filtering, in turn,
 is useful for the Data Mining on the real-time speed of the traffic):
 
      ...
@@ -121,4 +121,25 @@ is useful for the Data Mining on the real-time speed of the traffic):
      ArcCenterX = 0
      ArcCenterY = 0
      street = BROADWAY
+
+So `dump_NYC_LION_street_intersections.scala` can be called this way:
+
+    dump_NYC_LION_street_intersections.scala  [WKT-geometry  [resulting-shapefile]]
+
+to do a geometrical filtering of the LION street segments according to
+the argument `WKT-geometry` if present (either there street segments are
+contained in this geometry or intersect it), and optionally, saving
+such filtered street segments to newly created `resulting-shapefile`. For
+example:
+
+    dump_NYC_LION_street_intersections.scala  \
+          'MULTILINESTRING ((-73.90 40.85, -73.903 40.8518))'  \
+          resultshp1.shp
+
+    dump_NYC_LION_street_intersections.scala \
+          'POLYGON((-74.022498 40.738589, -73.976334 40.738589, -73.976334 40.699383, -74.022498 40.699383, -74.022498 40.738589))' \
+          resultshp2.shp
+
+and in either case, it will create those resulting shapefiles and write
+to them only those LION street segments in the given WKT geometries.
 

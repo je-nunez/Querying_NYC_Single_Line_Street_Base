@@ -1,6 +1,7 @@
 #!/usr/bin/env scala
 
 import scala.collection.JavaConversions._
+import scala.collection.mutable._
 import _root_.org.geoscript.layer._
 import org.geoscript.style.combinators._
 import org.geoscript.style._
@@ -9,26 +10,69 @@ import org.geoscript.io.Sink
 import org.geoscript.viewer.Viewer._
 import org.geoscript.projection._
 import java.awt.Rectangle
-import org.geoscript.geometry._
+import _root_.java.io.File
+import org.geoscript.geometry.io._
+import com.vividsolutions._
+import org.geoscript.workspace._
+import org.geotools.data.store._
+import org.geoscript.feature._
+import org.opengis.feature.simple.SimpleFeature
+import org.geotools.feature.simple.SimpleFeatureBuilder
+import org.geotools.data.shapefile.ShapefileDataStore
+import org.geotools.data.shapefile.ShapefileDataStoreFactory
+import org.geotools.data.simple.SimpleFeatureSource
+// import org.geotools.data.Transaction
+import org.geotools.data.DefaultTransaction
+import org.geotools.data.simple.SimpleFeatureCollection
+import org.geotools.data.simple.SimpleFeatureStore
+import org.geotools.feature.FeatureCollections
+import org.geotools.feature.DefaultFeatureCollection
 
+
+
+def create_resulting_shapefile(shp_filename: String, fields: FeatureCollection)
+       : ShapefileDataStore =
+{
+    val shp_file = new File(shp_filename)
+    val factory = new ShapefileDataStoreFactory()
+
+    val params = Map("url" -> shp_file.toURI().toURL())
+    // params += (("create spatial index", true))
+
+    val new_ShpFile = factory.createNewDataStore(params).
+                                  asInstanceOf[ShapefileDataStore]
+
+    val featureBuilder = new SimpleFeatureBuilder(fields.getSchema)
+
+    val featureType = featureBuilder.getFeatureType()
+
+    new_ShpFile.createSchema(featureType)
+
+    return new_ShpFile
+}
 
 
 def dump_nyc_lion_street_db(location_LION_shapefile: String,
-                            filter_polygonal_area: String) {
+                            filter_polygonal_area: String,
+                            save_to_shpfile: String) {
 
     // Open the filename as a ESRI Shapefile
 
     val lion_shp = Shapefile(location_LION_shapefile)
 
+    println("DEBUG: Class of ShpFile: " + lion_shp.getClass)
+
     println("Number of items in LION shapefile: " + lion_shp.count)
 
     println("Schema: " + lion_shp.schema)
 
+    println("Features: " + lion_shp.features)
     println("Bounds rectangle: " + lion_shp.features.getBounds())
 
     /* Dump the fields imported into the Shapefile from the NYC intersections
      * in the LION Street db, like:
-     *    the_geom = MULTILINESTRING ((-73.90478740690548 40.87892363753028, -73.90442743514292 40.87943261859585))
+     *    the_geom = MULTILINESTRING ((-73.90478740690548 40.87892363753028,
+     *                                 -73.90442743514292 40.87943261859585))
      *    segmentid = 0079707
      *    segmenttyp = U
      *    segcount = 1
@@ -41,9 +85,23 @@ def dump_nyc_lion_street_db(location_LION_shapefile: String,
      *    street = BROADWAY
      */
 
-    var polygonal_constraint: Geometry = null;
+    var polygonal_constraint: jts.geom.Geometry = null
+    var result_shapefile: ShapefileDataStore = null
+    var result_lion_feat: DefaultFeatureCollection = null
+
     if (filter_polygonal_area != null) {
-       polygonal_constraint = Geometry.fromWKT(filter_polygonal_area)
+       polygonal_constraint = WKT.read(
+                         org.geoscript.io.Source.string(filter_polygonal_area)
+                                      )
+       if (save_to_shpfile != null) {
+          // It is requested that that the results be saved to a shapefile
+          result_shapefile = create_resulting_shapefile(save_to_shpfile,
+                                                        lion_shp.features)
+          result_shapefile.setIndexCreationEnabled(false)
+          println("DEBUG: result_shapefile: " + result_shapefile)
+          result_lion_feat = new DefaultFeatureCollection()
+          println("DEBUG: result_lion_feat: " + result_lion_feat)
+       }
     }
 
     for (f <- lion_shp.features.toArray()) {
@@ -51,18 +109,77 @@ def dump_nyc_lion_street_db(location_LION_shapefile: String,
           val feature =
                f.asInstanceOf[org.geotools.feature.simple.SimpleFeatureImpl]
 
-          // Print all the property names and values of this feature
-          for (property <- feature.getProperties) {
-              println(property.getName() + " = " + property.getValue())
-              /*
-               * // Printing LION property types and constraints as well
-               *  println(property.getName() +
-               *          "[" + property.getType() + "] = " +
-               *          property.getValue()
-               *         )
-               */
+          var print_this_feature: Boolean = true
+
+          // Check if there is a polygonal_constraint (ie., a polygonal filter)
+          if (polygonal_constraint != null) {
+              // the New York City LION street segment intersects this filter?
+              val strt_segm: jts.geom.Geometry =
+                                    feature.getAttribute("the_geom").
+                                               asInstanceOf[jts.geom.Geometry]
+              print_this_feature = polygonal_constraint.intersects(strt_segm)
+              if (!print_this_feature) {
+                 /*
+                  * Try if the constraint is a polygon and the LION segment is
+                  * contained in it.
+                  * The most general -and optimum- way to handle this is
+                  * to use:
+                  *      IntersectionMatrix
+                  *             polygonal_constraint.relate(strt_segm)
+                  * and see what are the relations between both geometries
+                  * http://www.vividsolutions.com/jts/javadoc/com/vividsolutions/jts/geom/Geometry.html#relate(com.vividsolutions.jts.geom.Geometry)
+                 */
+                 if (polygonal_constraint.isInstanceOf[jts.geom.Polygon]) {
+                      print_this_feature =
+                                    polygonal_constraint.contains(strt_segm)
+                 }
+              }
+          }
+
+          if (print_this_feature) {
+              // Print all the property names and values of this feature
+              for (property <- feature.getProperties) {
+                  println(property.getName() + " = " + property.getValue())
+                  /*
+                   * // Printing LION property types and constraints as well
+                   *  println(property.getName() +
+                   *          "[" + property.getType() + "] = " +
+                   *          property.getValue()
+                   *         )
+                   */
+              }
+
+              // Add this feature to a resulting shapefile (if requested so)
+              if (result_lion_feat != null) {
+                  result_lion_feat.add(feature)
+              }
           }
     }
+
+    if(result_lion_feat != null && result_lion_feat.size >= 1) {
+
+        val typeName = result_shapefile.getTypeNames()(0)
+        val featureSource = result_shapefile.getFeatureSource(typeName)
+        if (featureSource.isInstanceOf[SimpleFeatureStore]) {
+            val featureStore = featureSource.asInstanceOf[SimpleFeatureStore]
+            val transaction = new DefaultTransaction("create")
+            featureStore.setTransaction(transaction)
+            try {
+                featureStore.addFeatures(result_lion_feat)
+                transaction.commit()
+            } catch {
+                 case e: java.lang.Exception => {
+                      transaction.rollback()
+                      transaction.close()
+                 }
+            } finally {
+                transaction.close()
+            }
+        }
+        result_shapefile.setIndexCreationEnabled(true)
+    }
+
+    return   // the visualization below is raising a run-time exception
 
     /* While the dump of the NYC LION shapefile is ok (above), the drawing
      * code below is failing by raising an exception, and needs to be fixed.
@@ -150,7 +267,12 @@ def main(cmdl_args: Array[String]) {
      if (cmdl_args.length >= 1)
          polygonal_constraint = cmdl_args(0)
 
-     dump_nyc_lion_street_db(nyc_lion_street_db, polygonal_constraint)
+     var save_to_shpfile: String = null
+     if (cmdl_args.length >= 2)
+         save_to_shpfile = cmdl_args(1)
+
+     dump_nyc_lion_street_db(nyc_lion_street_db, polygonal_constraint,
+                             save_to_shpfile)
 }
 
 
