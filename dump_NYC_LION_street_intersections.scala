@@ -3,34 +3,76 @@
 import scala.collection.JavaConversions._
 import scala.collection.mutable._
 import _root_.org.geoscript.layer._
-import org.geoscript.style.combinators._
-import org.geoscript.style._
+// import org.geoscript.style.combinators._
+// import org.geoscript.style._
 import org.geoscript.render._
-import org.geoscript.io.Sink
+// import org.geoscript.io.Sink
 import org.geoscript.viewer.Viewer._
-import org.geoscript.projection._
+// import org.geoscript.projection._
 import java.awt.Rectangle
 import _root_.java.io.File
 import org.geoscript.geometry.io._
 import com.vividsolutions._
-import org.geoscript.workspace._
+// import org.geoscript.workspace._
 import org.geotools.data.store._
 import org.geoscript.feature._
-import org.opengis.feature.simple.SimpleFeature
+// import org.opengis.feature.simple.SimpleFeature
+import org.opengis.feature.simple.SimpleFeatureType
 import org.geotools.feature.simple.SimpleFeatureBuilder
+import org.geotools.feature.simple.SimpleFeatureTypeImpl
+import org.geotools.data.directory.DirectoryFeatureLocking
 import org.geotools.data.shapefile.ShapefileDataStore
 import org.geotools.data.shapefile.ShapefileDataStoreFactory
-import org.geotools.data.simple.SimpleFeatureSource
+// import org.geotools.data.simple.SimpleFeatureSource
 // import org.geotools.data.Transaction
 import org.geotools.data.DefaultTransaction
-import org.geotools.data.simple.SimpleFeatureCollection
+// import org.geotools.data.simple.SimpleFeatureCollection
 import org.geotools.data.simple.SimpleFeatureStore
-import org.geotools.feature.FeatureCollections
+// import org.geotools.feature.FeatureCollections
 import org.geotools.feature.DefaultFeatureCollection
 
 
 
-def create_resulting_shapefile(shp_filename: String, fields: FeatureCollection)
+/*
+ * function: open_a_shapefile
+ *
+ * Uses GeoScript to open a filename and return the ESRI Shapefile layer.
+ *
+ * @param shapefile_fname filename of the shapefile (should include ".shp")
+ * @return opened shapefile (layer according to GeoScript)
+ */
+
+def open_a_shapefile(shapefile_fname: String): Layer =
+{
+    // Open the filename as a ESRI Shapefile
+
+    val shp = Shapefile(shapefile_fname)
+
+    println("DEBUG: Class of ShpFile: " + shp.getClass)
+
+    println("DEBUG: Number of items in LION shapefile: " + shp.count)
+
+    println("DEBUG: Schema: " + shp.schema)
+
+    println("DEBUG: Features: " + shp.features)
+    println("DEBUG: Bounds rectangle: " + shp.features.getBounds())
+
+    return shp
+}
+
+
+/*
+ * function: create_new_shapefile
+ *
+ * Uses GeoTools to create a new shapefile given a filename, and returns
+ * the ESRI Shapefile layer.
+ *
+ * @param shp_filename the filename of the new shapefile
+ * @param schema the schema to give to the new shapefile
+ * @return the new shapefile
+ */
+
+def create_new_shapefile(shp_filename: String, schema: SimpleFeatureType)
        : ShapefileDataStore =
 {
     val shp_file = new File(shp_filename)
@@ -42,7 +84,7 @@ def create_resulting_shapefile(shp_filename: String, fields: FeatureCollection)
     val new_ShpFile = factory.createNewDataStore(params).
                                   asInstanceOf[ShapefileDataStore]
 
-    val featureBuilder = new SimpleFeatureBuilder(fields.getSchema)
+    val featureBuilder = new SimpleFeatureBuilder(schema)
 
     val featureType = featureBuilder.getFeatureType()
 
@@ -52,59 +94,28 @@ def create_resulting_shapefile(shp_filename: String, fields: FeatureCollection)
 }
 
 
-def dump_nyc_lion_street_db(location_LION_shapefile: String,
-                            filter_polygonal_area: String,
-                            save_to_shpfile: String) {
+/*
+ * function: filter_and_dump_geom_features
+ *
+ * Uses GeoTools to create a new shapefile given a filename, and returns
+ * the ESRI Shapefile layer.
+ *
+ * @param input_features the input features on which to process
+ * @param filtering_geom the filtering geometry to match (null is possible)
+ * @param resulting_features the feature collection where to save the
+ *                           filtered results (null is possible: don't save)
+ */
 
-    // Open the filename as a ESRI Shapefile
-
-    val lion_shp = Shapefile(location_LION_shapefile)
-
-    println("DEBUG: Class of ShpFile: " + lion_shp.getClass)
-
-    println("Number of items in LION shapefile: " + lion_shp.count)
-
-    println("Schema: " + lion_shp.schema)
-
-    println("Features: " + lion_shp.features)
-    println("Bounds rectangle: " + lion_shp.features.getBounds())
-
-    /* Dump the fields imported into the Shapefile from the NYC intersections
-     * in the LION Street db, like:
-     *    the_geom = MULTILINESTRING ((-73.90478740690548 40.87892363753028,
-     *                                 -73.90442743514292 40.87943261859585))
-     *    segmentid = 0079707
-     *    segmenttyp = U
-     *    segcount = 1
-     *    XFrom = 1010580
-     *    YFrom = 259508
-     *    XTo = 1010679
-     *    YTo = 259693
-     *    ArcCenterX = 0
-     *    ArcCenterY = 0
-     *    street = BROADWAY
+def filter_and_dump_geom_features(input_features: FeatureCollection,
+                                  filtering_geom: jts.geom.Geometry,
+                                  resulting_features: DefaultFeatureCollection)
+{
+    /* TODO: this has to be rewritten to use instead the subCollection(Filter)
+     *       method of "input_features: FeatureCollection", instead of the full
+     *       for-loop in this initial test version
      */
 
-    var polygonal_constraint: jts.geom.Geometry = null
-    var result_shapefile: ShapefileDataStore = null
-    var result_lion_feat: DefaultFeatureCollection = null
-
-    if (filter_polygonal_area != null) {
-       polygonal_constraint = WKT.read(
-                         org.geoscript.io.Source.string(filter_polygonal_area)
-                                      )
-       if (save_to_shpfile != null) {
-          // It is requested that that the results be saved to a shapefile
-          result_shapefile = create_resulting_shapefile(save_to_shpfile,
-                                                        lion_shp.features)
-          result_shapefile.setIndexCreationEnabled(false)
-          println("DEBUG: result_shapefile: " + result_shapefile)
-          result_lion_feat = new DefaultFeatureCollection()
-          println("DEBUG: result_lion_feat: " + result_lion_feat)
-       }
-    }
-
-    for (f <- lion_shp.features.toArray()) {
+    for (f <- input_features.toArray()) {
 
           val feature =
                f.asInstanceOf[org.geotools.feature.simple.SimpleFeatureImpl]
@@ -112,12 +123,12 @@ def dump_nyc_lion_street_db(location_LION_shapefile: String,
           var print_this_feature: Boolean = true
 
           // Check if there is a polygonal_constraint (ie., a polygonal filter)
-          if (polygonal_constraint != null) {
+          if (filtering_geom != null) {
               // the New York City LION street segment intersects this filter?
               val strt_segm: jts.geom.Geometry =
                                     feature.getAttribute("the_geom").
                                                asInstanceOf[jts.geom.Geometry]
-              print_this_feature = polygonal_constraint.intersects(strt_segm)
+              print_this_feature = filtering_geom.intersects(strt_segm)
               if (!print_this_feature) {
                  /*
                   * Try if the constraint is a polygon and the LION segment is
@@ -125,13 +136,13 @@ def dump_nyc_lion_street_db(location_LION_shapefile: String,
                   * The most general -and optimum- way to handle this is
                   * to use:
                   *      IntersectionMatrix
-                  *             polygonal_constraint.relate(strt_segm)
+                  *             filtering_geom.relate(strt_segm)
                   * and see what are the relations between both geometries
                   * http://www.vividsolutions.com/jts/javadoc/com/vividsolutions/jts/geom/Geometry.html#relate(com.vividsolutions.jts.geom.Geometry)
                  */
-                 if (polygonal_constraint.isInstanceOf[jts.geom.Polygon]) {
+                 if (filtering_geom.isInstanceOf[jts.geom.Polygon]) {
                       print_this_feature =
-                                    polygonal_constraint.contains(strt_segm)
+                                    filtering_geom.contains(strt_segm)
                  }
               }
           }
@@ -149,43 +160,60 @@ def dump_nyc_lion_street_db(location_LION_shapefile: String,
                    */
               }
 
-              // Add this feature to a resulting shapefile (if requested so)
-              if (result_lion_feat != null) {
-                  result_lion_feat.add(feature)
+              // Add this feature to a resulting feature collection (if
+              // requested so)
+              if (resulting_features != null) {
+                  resulting_features.add(feature)
               }
           }
     }
 
-    if(result_lion_feat != null && result_lion_feat.size >= 1) {
+}
 
-        val typeName = result_shapefile.getTypeNames()(0)
-        val featureSource = result_shapefile.getFeatureSource(typeName)
-        if (featureSource.isInstanceOf[SimpleFeatureStore]) {
-            val featureStore = featureSource.asInstanceOf[SimpleFeatureStore]
-            val transaction = new DefaultTransaction("create")
-            featureStore.setTransaction(transaction)
-            try {
-                featureStore.addFeatures(result_lion_feat)
-                transaction.commit()
-            } catch {
-                 case e: java.lang.Exception => {
-                      transaction.rollback()
-                      transaction.close()
-                 }
-            } finally {
-                transaction.close()
-            }
+
+/*
+ * function: save_features_to_shapefile
+ *
+ * Saves a collection of features to an ESRI shapefile
+ *
+ * @param input_features the input features to save
+ * @param to_shapefile the shapefile to save those features
+ */
+
+def save_features_to_shapefile(input_features: FeatureCollection,
+                               to_shapefile: ShapefileDataStore)
+{
+    val typeName = to_shapefile.getTypeNames()(0)
+    val featureSource = to_shapefile.getFeatureSource(typeName)
+    if (featureSource.isInstanceOf[SimpleFeatureStore]) {
+        val featureStore = featureSource.asInstanceOf[SimpleFeatureStore]
+        val transaction = new DefaultTransaction("create")
+        featureStore.setTransaction(transaction)
+        try {
+            featureStore.addFeatures(input_features)
+            transaction.commit()
+        } catch {
+             case e: java.lang.Exception => {
+                  transaction.rollback()
+                  transaction.close()
+             }
+        } finally {
+            transaction.close()
         }
-        result_shapefile.setIndexCreationEnabled(true)
     }
+}
 
-    return   // the visualization below is raising a run-time exception
 
-    /* While the dump of the NYC LION shapefile is ok (above), the drawing
-     * code below is failing by raising an exception, and needs to be fixed.
-     * plot_NYC_LION_Geodb.py in this repository is able to render it
-     * nevertheless.
-     */
+/*
+ * function: visualize_layer
+ *
+ * Visualize a layer. (TODO: This function is raising a run-time exception,
+ * so this function needs to be worked on further)
+ *
+ * @param layer the layer to visualize
+ */
+
+def visualize_layer(layer: Layer) {
 
     /*
      * About styles in general in GeoScript Scala:
@@ -229,30 +257,120 @@ def dump_nyc_lion_street_db(location_LION_shapefile: String,
      *    and "EPSG:4326" is "WGS 84", that is the coord-system we converted
      *    the NYC LION Street database to.
      */
-    // val viewport = Viewport.pad(reference(lion_shp.envelope,
+    // val viewport = Viewport.pad(reference(layer.envelope,
     //                                       LatLon),
     //                                       frame)
 
-    val viewport = Viewport.pad(lion_shp.getBounds(), frame)
+    val viewport = Viewport.pad(layer.getBounds(), frame)
 
     /*
      * // Save the New York City LION Street shapefile as an image
      * render(
      *          viewport,
-     *          Seq(MapLayer(lion_shp, myStyle))
-     *       ) on PNG(Sink.file("nyc_lion_shapefile.png"), frame)
-     *   // ) on JPEG(Sink.file("nyc_lion_shapefile.jpg"), rectangle)
+     *          Seq(MapLayer(layer, myStyle))
+     *       ) on PNG(Sink.file("image.png"), frame)
+     *   // ) on JPEG(Sink.file("image.jpg"), rectangle)
      */
 
     // Try to display the NYC LION Single Line Street GeoDB
 
-    display(Seq(MapLayer(lion_shp, myStyle)))
+    display(Seq(MapLayer(layer, myStyle)))
 }
 
 
 /*
- *   MAIN PROGRAM
+ * function: dump_nyc_lion_street_db
  *
+ * Dump the New York City's Department of City Planning LION Single Line
+ * Street database (it must have been imported into an ESRI Shapefile
+ * first: see other ETL task in this task that downloads the LION URL)
+ *
+ * @param location_LION_shapefile filename with the NYC LION Street Shapefile
+ * @param filter_polygonal_area a WKT geometry string to which to filter the
+ *                              LION street segments if matching this WKT geom
+ *                              (null is possible: do not filter)
+ * @param save_to_shpfile filename of the ESRI Shapefile where to save the
+ *                        resulting LION street segments by filter match above
+ *                        (null is possible: do not save the filtered streets)
+ */
+
+def dump_nyc_lion_street_db(location_LION_shapefile: String,
+                            filter_polygonal_area: String,
+                            save_to_shpfile: String) {
+
+    val lion_shp = open_a_shapefile(location_LION_shapefile)
+
+    /* Dump the fields imported into the Shapefile from the NYC intersections
+     * in the LION Street db, like:
+     *    the_geom = MULTILINESTRING ((-73.90478740690548 40.87892363753028,
+     *                                 -73.90442743514292 40.87943261859585))
+     *    segmentid = 0079707
+     *    segmenttyp = U
+     *    segcount = 1
+     *    XFrom = 1010580
+     *    YFrom = 259508
+     *    XTo = 1010679
+     *    YTo = 259693
+     *    ArcCenterX = 0
+     *    ArcCenterY = 0
+     *    street = BROADWAY
+     */
+
+    var polygonal_constraint: jts.geom.Geometry = null
+    var result_shapefile: ShapefileDataStore = null
+    var result_lion_feat: DefaultFeatureCollection = null
+
+    if (filter_polygonal_area != null) {
+        polygonal_constraint = WKT.read(
+                         org.geoscript.io.Source.string(filter_polygonal_area)
+                                      )
+        if (save_to_shpfile != null) {
+            // It is requested that that the results be saved to a shapefile
+            result_shapefile = create_new_shapefile(save_to_shpfile,
+                                                    lion_shp.features.getSchema)
+            result_lion_feat = new DefaultFeatureCollection()
+        }
+    }
+
+    // Filter and dump the LION street segments that match that
+    // polygonal_constraint, leaving them in the result_lion_feat if
+    // requested so
+
+    filter_and_dump_geom_features(lion_shp.features, polygonal_constraint,
+                                  result_lion_feat)
+
+    // Save the resulting filtered features, if requested
+
+    if (result_lion_feat != null && result_lion_feat.size >= 1) {
+        result_shapefile.setIndexCreationEnabled(false)
+        try {
+            save_features_to_shapefile(result_lion_feat, result_shapefile)
+        } finally {
+            result_shapefile.setIndexCreationEnabled(true)
+        }
+    }
+
+    return   // the visualization below is raising a run-time exception
+
+    /* While the dump of the NYC LION shapefile is ok (above), the drawing
+     * code below is failing by raising an exception, and needs to be fixed.
+     * plot_NYC_LION_Geodb.py in this repository is able to render it
+     * nevertheless.
+     */
+
+    // visualize_layer(lion_shp)
+}
+
+
+/*
+ * function: main
+ *
+ * The MAIN function for this program.
+ *
+ * @param cmdl_args the command-line arguments: if present, first argument is
+ *                  a WKT geometry to filter all the NYC LION street segments;
+ *                  if present, second argument is the new ESRI Shapefile to
+ *                  save the filtered NYC LION street segments by that WKT geom
  */
 
 def main(cmdl_args: Array[String]) {
