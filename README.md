@@ -100,13 +100,13 @@ obtaining an image like:
 
 ![sample New York City LION plot using matplotlib and basemap](/a_result_NYC_LION_matplotlib_basemap.png?raw=true "sample New York City LION plot using matplotlib and basemap")
 
-There is another script, `dump_NYC_LION_street_intersections.scala`
-(Scala using the GeoScript and the GeoTools libraries), which dumps
-the fields imported from the LION db into the `shapefile` (like
--it could apply a regular-expression filter on the `street` name, or
-a polygonal filter by the intersection of that filtering polygon to
-the `the_geom` `MULTILINESTRING` -this polygonal filtering, in turn,
-is useful for the Data Mining on the real-time speed of the traffic):
+There is another script, `filter_NYC_LION_street_intersections.scala`
+(Scala using the `GeoScript`, `GeoTools`, `JTS`, `OpenGIS` libraries),
+which filters and dumps the fields imported from the LION db into a
+new `shapefile` according to the intersection of a filtering `WKT
+geometry` with the LION street segments `the_geom` `MULTILINESTRING`
+position, and this might be useful for the Data Mining on the
+real-time speed of the traffic:
 
      ...
      the_geom = MULTILINESTRING ((-73.90478740690548 40.87892363753028,
@@ -122,24 +122,34 @@ is useful for the Data Mining on the real-time speed of the traffic):
      ArcCenterY = 0
      street = BROADWAY
 
-So `dump_NYC_LION_street_intersections.scala` can be called this way:
+So `filter_NYC_LION_street_intersections.scala` can be called this way:
 
-    dump_NYC_LION_street_intersections.scala  [WKT-geometry  [resulting-shapefile]]
+    filter_NYC_LION_street_intersections.scala  [WKT-geometry  [resulting-shapefile]]
 
 to do a geometrical filtering of the LION street segments according to
-the argument `WKT-geometry` if present (either there street segments are
-contained in this geometry or intersect it), and optionally, saving
-such filtered street segments to newly created `resulting-shapefile`. For
+the argument `WKT-geometry` if present (either if the street segments are
+contained in this geometry or intersect it), and optionally, saving such
+filtered street segments to a newly created `resulting-shapefile`. For
 example:
 
-    dump_NYC_LION_street_intersections.scala  \
+    filter_NYC_LION_street_intersections.scala  \
           'MULTILINESTRING ((-73.90 40.85, -73.903 40.8518))'  \
           resultshp1.shp
 
-    dump_NYC_LION_street_intersections.scala \
+    filter_NYC_LION_street_intersections.scala \
           'POLYGON((-74.022498 40.738589, -73.976334 40.738589, -73.976334 40.699383, -74.022498 40.699383, -74.022498 40.738589))' \
           resultshp2.shp
 
 and in either case, it will create those resulting shapefiles and write
 to them only those LION street segments in the given WKT geometries.
+
+(The `WKT-geometry` argument, if given, must be in the `WGS 84`
+-`EPSG:4326`- coordinates-system, and the resulting shapefile with
+the filtered segments, if requested, will be also in this coordinate
+system -and same schema of feature-types as the original ETL of the
+NYC LION single-line street segments db.)
+
+(`filter_NYC_LION_street_intersections.scala` could also apply a
+regular-expression filter on the `street` name of the LION db, but
+this doesn't seem necessary for these purposes yet.)
 
