@@ -146,10 +146,13 @@ to them only those LION street segments in the given WKT geometries.
 (The `WKT-geometry` argument, if given, must be in the `WGS 84`
 -`EPSG:4326`- coordinates-system, and the resulting shapefile with
 the filtered segments, if requested, will be also in this coordinate
-system -and same schema of feature-types as the original ETL of the
+system -with same schema of feature-types as the original ETL of the
 NYC LION single-line street segments db.)
 
 (`filter_NYC_LION_street_intersections.scala` could also apply a
 regular-expression filter on the `street` name of the LION db, but
-this doesn't seem necessary for these purposes yet.)
+this doesn't seem necessary for these purposes yet. Another filtering
+condition can be according to the length of the NYC LION street segment
+-using the `getLength()` method for the `JTS geometry` of the street
+segment-, and this filtering could be more useful.)
 
