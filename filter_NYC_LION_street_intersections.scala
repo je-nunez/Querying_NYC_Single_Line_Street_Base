@@ -50,7 +50,7 @@ def open_a_shapefile(shapefile_fname: String): Layer =
 
     println("DEBUG: Class of ShpFile: " + shp.getClass)
 
-    println("DEBUG: Number of items in LION shapefile: " + shp.count)
+    println("DEBUG: Number of items in the shapefile: " + shp.count)
 
     println("DEBUG: Schema: " + shp.schema)
 
@@ -124,15 +124,15 @@ def filter_and_dump_geom_features(input_features: FeatureCollection,
 
           // Check if there is a polygonal_constraint (ie., a polygonal filter)
           if (filtering_geom != null) {
-              // the New York City LION street segment intersects this filter?
+              // this feature's geometry intersects this filter?
               val strt_segm: jts.geom.Geometry =
                                     feature.getAttribute("the_geom").
                                                asInstanceOf[jts.geom.Geometry]
               print_this_feature = filtering_geom.intersects(strt_segm)
               if (!print_this_feature) {
                  /*
-                  * Try if the constraint is a polygon and the LION segment is
-                  * contained in it.
+                  * Try if the constraint is a polygon and if this feature's
+                  * geometry is contained in it.
                   * The most general -and optimum- way to handle this is
                   * to use:
                   *      IntersectionMatrix
@@ -152,7 +152,8 @@ def filter_and_dump_geom_features(input_features: FeatureCollection,
               for (property <- feature.getProperties) {
                   println(property.getName() + " = " + property.getValue())
                   /*
-                   * // Printing LION property types and constraints as well
+                   * // Printing this feature property types and constraints
+                   * // as well
                    *  println(property.getName() +
                    *          "[" + property.getType() + "] = " +
                    *          property.getValue()
@@ -255,7 +256,7 @@ def visualize_layer(layer: Layer) {
 
     /* LatLon is precisely LatLon = lookupEPSG("EPSG:4326"),
      *    and "EPSG:4326" is "WGS 84", that is the coord-system we converted
-     *    the NYC LION Street database to.
+     *    so this shapefile is in this coordinate system
      */
     // val viewport = Viewport.pad(reference(layer.envelope,
     //                                       LatLon),
@@ -264,7 +265,7 @@ def visualize_layer(layer: Layer) {
     val viewport = Viewport.pad(layer.getBounds(), frame)
 
     /*
-     * // Save the New York City LION Street shapefile as an image
+     * // Save this layer of the shapefile as an image
      * render(
      *          viewport,
      *          Seq(MapLayer(layer, myStyle))
@@ -272,7 +273,7 @@ def visualize_layer(layer: Layer) {
      *   // ) on JPEG(Sink.file("image.jpg"), rectangle)
      */
 
-    // Try to display the NYC LION Single Line Street GeoDB
+    // Try to display this layer
 
     display(Seq(MapLayer(layer, myStyle)))
 }
