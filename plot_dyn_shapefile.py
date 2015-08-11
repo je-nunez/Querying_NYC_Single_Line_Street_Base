@@ -17,72 +17,108 @@ This script will change to make it faster.
 # pylint: disable=no-name-in-module
 # pylint: disable=invalid-name
 
+import sys
+import os
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
 import fiona
 from shapely.geometry import shape
-from shapely.ops import cascaded_union
-import sys
 
 
-layers = []
-with fiona.drivers():
+def find_bounds_of_the_shapefile(shp_filename):
+    """Find the bounds -or envelope- of a shapefile
 
-    with fiona.open(sys.argv[1] + '.shp', 'r') as source:
-        for layer in source:
-            # layer = source.next()
-            # print layer
-            layers.append(shape(layer['geometry']))
+    The 'shp_filename' parameter should NOT have a '.shp' extension: it is
+    appended inside.
 
-print "Calculating the bounds of the cascaded_union of the list of layers"
-envel_bounds = list(cascaded_union(layers).bounds)
+    The return value is a tuple (minx, miny, maxx, maxy) with the bounds
+    -or envelope- of the shapefile
+    """
 
-print "Original enveloping bounds: ", envel_bounds
+    # initial values
+    abs_minx = 100000000.0
+    abs_miny = 100000000.0
+    abs_maxx = -100000000.0
+    abs_maxy = -100000000.0
 
-# Expand a little the geometrical bounds given by shapely
+    with fiona.drivers():
 
-delta_long = abs(envel_bounds[0] - envel_bounds[2])
-delta_latd = abs(envel_bounds[1] - envel_bounds[3])
-envel_bounds[0] -= delta_long / 100.0
-envel_bounds[2] += delta_long / 100.0
+        with fiona.open(shp_filename + '.shp', 'r') as source:
+            for layer in source:
+                (minx, miny, maxx, maxy) = shape(layer['geometry']).bounds
+                if minx < abs_minx:
+                    abs_minx = minx
+                if miny < abs_miny:
+                    abs_miny = miny
+                if maxx > abs_maxx:
+                    abs_maxx = maxx
+                if maxy > abs_maxy:
+                    abs_maxy = maxy
 
-envel_bounds[1] -= delta_latd / 100.0
-envel_bounds[3] += delta_latd / 100.0
+    # expand a little the bounds (eg., by the delta/100)
+    delta_long = abs(abs_maxx - abs_minx)
+    delta_latd = abs(abs_maxy - abs_miny)
+    abs_minx -= delta_long / 100.0
+    abs_maxx += delta_long / 100.0
 
-print "Expanded enveloping bounds: ", envel_bounds
+    abs_miny -= delta_latd / 100.0
+    abs_maxy += delta_latd / 100.0
 
-LOW_LEFT_CORNR_LONGITUDE = envel_bounds[0]
-LOW_LEFT_CORNER_LATITUDE = envel_bounds[1]
-UP_RIGHT_CORNER_LONGITUDE = envel_bounds[2]
-UP_RIGHT_CORNER_LATITUDE = envel_bounds[3]
+    return (abs_minx, abs_miny, abs_maxx, abs_maxy)
 
-MIN_NYC_ISLAND_TO_VISUALIZ = 0.0006
 
-# Create the Basemap
+def draw_shapefile(shp_filename):
+    """Draw a shapefile.
 
-m = Basemap(llcrnrlon=LOW_LEFT_CORNR_LONGITUDE,
-            llcrnrlat=LOW_LEFT_CORNER_LATITUDE,
-            urcrnrlon=UP_RIGHT_CORNER_LONGITUDE,
-            urcrnrlat=UP_RIGHT_CORNER_LATITUDE,
-            ellps='WGS84',
-            resolution='f',
-            area_thresh=MIN_NYC_ISLAND_TO_VISUALIZ)
+    The 'shp_filename' parameter should NOT have a '.shp' extension: it is
+    appended inside.
+    """
 
-m.drawcoastlines()
-m.fillcontinents(color='green')
-m.drawcountries(linewidth=3)
-m.drawstates()
-m.drawrivers()
+    (minx, miny, maxx, maxy) = find_bounds_of_the_shapefile(shp_filename)
 
-m.drawmapboundary(fill_color='blue')
+    min_coastal_line_to_draw = 0.0006
 
-# Plot the shapefile in a basemap/matplotlib
-s = m.readshapefile(shapefile=sys.argv[1],
-                    name='segments', color='blue', linewidth=0.4)
+    # Create the Basemap
 
-# plt.legend()
-mng = plt.get_current_fig_manager()
-mng.full_screen_toggle()
-plt.title('Plotting the Shapefile ' + sys.argv[1] + ' in basemap/matplotlib')
-plt.show()
+    m = Basemap(llcrnrlon=minx, llcrnrlat=miny,
+                urcrnrlon=maxx, urcrnrlat=maxy,
+                ellps='WGS84',
+                resolution='f',
+                area_thresh=min_coastal_line_to_draw)
 
+    m.drawcoastlines()
+    m.fillcontinents(color='green')
+    m.drawcountries(linewidth=3)
+    m.drawstates()
+    m.drawrivers()
+
+    m.drawmapboundary(fill_color='blue')
+
+    # Plot the shapefile in a basemap/matplotlib
+    _ = m.readshapefile(shapefile=shp_filename,
+                        name='segments', color='blue', linewidth=0.4)
+
+    # plt.legend()
+    mng = plt.get_current_fig_manager()
+    mng.full_screen_toggle()
+    plt.title('Plotting the Shapefile ' + shp_filename)
+    plt.show()
+
+
+def main(shp_filename):
+    """Main function."""
+
+    if not os.path.isfile(shp_filename):
+        sys.stderr.write("File 'shp_filename' not found.\n")
+        sys.exit(1)
+
+    if shp_filename.endswith('.shp'):
+        # remove the '.shp' extension
+        shp_filename = shp_filename[:-4]
+
+    # draw the shapefile
+    draw_shapefile(shp_filename)
+
+
+if __name__ == '__main__':
+    main(sys.argv[1])
