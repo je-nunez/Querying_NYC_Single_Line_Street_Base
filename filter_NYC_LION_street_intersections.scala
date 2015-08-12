@@ -1,35 +1,55 @@
-#!/usr/bin/env scala
+#!/usr/bin/env scala -deprecation
+/* Ask Scala to warn for "-deprecation" because there are methods in
+ * GeoTools that are being optimized according to the Open Geospatial
+ * Consortium:
+ *
+ *    http://www.opengeospatial.org/standards/
+ *
+ * and others whose use is now deprecated, as e.g., constructors in
+ *
+ *    MapContent
+ *
+ * http://docs.geotools.org/stable/javadocs/org/geotools/map/MapContent.html
+ *
+ * and the same therefore holds for GeoScript as well.
+ */
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable._
-import _root_.org.geoscript.layer._
-// import org.geoscript.style.combinators._
-// import org.geoscript.style._
-import org.geoscript.render._
-// import org.geoscript.io.Sink
-import org.geoscript.viewer.Viewer._
-// import org.geoscript.projection._
-import java.awt.Rectangle
+import scala.math._
 import _root_.java.io.File
+import _root_.java.io.IOException
 import org.geoscript.geometry.io._
-import com.vividsolutions._
-// import org.geoscript.workspace._
-import org.geotools.data.store._
 import org.geoscript.feature._
-// import org.opengis.feature.simple.SimpleFeature
+import _root_.org.geoscript.layer._
+import org.geoscript.render._
+import org.geoscript.viewer.Viewer._
+import _root_.java.awt.Color
+import _root_.java.awt.Rectangle
+import _root_.java.awt.image.BufferedImage
+import _root_.javax.imageio._
+import com.vividsolutions._
 import org.opengis.feature.simple.SimpleFeatureType
-import org.geotools.feature.simple.SimpleFeatureBuilder
-import org.geotools.feature.simple.SimpleFeatureTypeImpl
 import org.geotools.data.directory.DirectoryFeatureLocking
+import org.geotools.data.DefaultTransaction
 import org.geotools.data.shapefile.ShapefileDataStore
 import org.geotools.data.shapefile.ShapefileDataStoreFactory
-// import org.geotools.data.simple.SimpleFeatureSource
-// import org.geotools.data.Transaction
-import org.geotools.data.DefaultTransaction
-// import org.geotools.data.simple.SimpleFeatureCollection
 import org.geotools.data.simple.SimpleFeatureStore
-// import org.geotools.feature.FeatureCollections
+import org.geotools.data.store._
+import org.geotools.factory.CommonFactoryFinder
 import org.geotools.feature.DefaultFeatureCollection
+import org.geotools.feature.simple.SimpleFeatureBuilder
+import org.geotools.feature.simple.SimpleFeatureTypeImpl
+import org.geotools.geometry.jts.ReferencedEnvelope
+import org.geotools.map.FeatureLayer
+import org.geotools.map.MapContent
+// import org.geotools.renderer.shape.ShapefileRenderer
+import org.geotools.renderer.lite.StreamingRenderer
+import org.geotools.styling.Rule
+import org.geotools.styling.Stroke
+import org.geotools.styling.Style
+import org.geotools.styling.StyleFactory
+import org.geotools.util.logging.Logging
 
 
 
@@ -195,6 +215,7 @@ def save_features_to_shapefile(input_features: FeatureCollection,
             transaction.commit()
         } catch {
              case e: java.lang.Exception => {
+                  System.err.println("Caught an exception: " + e.getMessage)
                   transaction.rollback()
                   transaction.close()
              }
@@ -206,53 +227,174 @@ def save_features_to_shapefile(input_features: FeatureCollection,
 
 
 /*
- * function: visualize_layer
+ * function: createLineStyle
  *
- * Visualize a layer. (TODO: This function is raising a run-time exception,
- * so this function needs to be worked on further)
+ * Create a simple Style for rendering lines
  *
- * @param layer the layer to visualize
+ * @return the new Style
  */
 
-def visualize_layer(layer: Layer) {
+def createLineStyle(): Style = {
+
+    // See this function here:
+    //     http://docs.geotools.org/latest/tutorials/map/style.html
+
+    val styleFactory = CommonFactoryFinder.getStyleFactory(null)
+    val filterFactory = CommonFactoryFinder.getFilterFactory(null)
+
+    val stroke = styleFactory.createStroke(
+                                filterFactory.literal(Color.BLUE),
+                                filterFactory.literal(1)
+                       )
 
     /*
-     * About styles in general in GeoScript Scala:
+     * Setting the geometryPropertyName arg to null signals that we want to
+     * draw the default geomettry of features
+     */
+    val sym = styleFactory.createLineSymbolizer(stroke, null)
+
+    val rule = styleFactory.createRule()
+    rule.symbolizers().add(sym)
+
+    val rules: Array[Rule] = new Array[Rule](1)
+    rules(0) = rule
+
+    val fts = styleFactory.createFeatureTypeStyle(rules)
+    val style = styleFactory.createStyle()
+    style.featureTypeStyles().add(fts)
+
+    return style
+
+    /*
+     * To create in GeoScript (not GeoTools directly) a style from a
+     * Styled Layer Descriptor (SLD) string:
      *
-     *  https://github.com/dwins/geoscript.scala/blob/master/geoscript/src/main/sphinx/style.rst
+     * val casings =
+     *       Seq(("#FF0000", 1), ("#DD0000", 1), ("#AA0000", 1), ("#770000", 1))
+     *
+     * // A Styled Layer Descriptor (SLD)
+     *
+     * val sldXML =
+     *     <UserStyle xmlns="http://www.opengis.net/sld">
+     *        <FeatureTypeStyle>
+     *           <Rule>
+     *             { for ((color, width) <- casings) yield
+     *                 <LineSymbolizer>
+     *                    <Stroke>
+     *                       <CssParameter name="stroke">{color}</CssParameter>
+     *                 <CssParameter name="stroke-width">{width}</CssParameter>
+     *                    </Stroke>
+     *                 </LineSymbolizer>
+     *             }
+     *           </Rule>
+     *        </FeatureTypeStyle>
+     *     </UserStyle>
+     *
+     * // convert the Styled Layer Descriptor XML to a GeoScript style
+     *
+     * val myStyle = org.geoscript.style.io.SLD.read(
+     *                  org.geoscript.io.Source.string(sldXML.mkString(" "))
+     *             )
+     *
+     * // About styles in general in GeoScript Scala:
+     * // https://github.com/dwins/geoscript.scala/blob/master/geoscript/src/main/sphinx/style.rst
+     *
      */
 
-    // val style = Stroke(Color("#0000FF"))
+}
 
-    val casings =
-      Seq(("#FF0000", 1), ("#DD0000", 1), ("#AA0000", 1), ("#770000", 1))
 
-    // A Styled Layer Descriptor (SLD)
+/*
+ * function: save_map_content_to_jpeg_img
+ *
+ * Save a MapContent to a JPEG image filename
+ * (A version inspired from http://docs.geotools.org/latest/userguide/library/render/gtrenderer.html)
+ *
+ * @param map the MapContent with the layers
+ * @param img_fname the filename where to save the image
+ * @param imageWidth the width of the resulting image file
+ */
 
-    val sldXML =
-      <UserStyle xmlns="http://www.opengis.net/sld">
-        <FeatureTypeStyle>
-          <Rule>
-            { for ((color, width) <- casings) yield
-                <LineSymbolizer>
-                  <Stroke>
-                    <CssParameter name="stroke">{color}</CssParameter>
-                    <CssParameter name="stroke-width">{width}</CssParameter>
-                  </Stroke>
-                </LineSymbolizer>
-            }
-          </Rule>
-        </FeatureTypeStyle>
-      </UserStyle>
+def save_map_content_to_jpeg_img(map: MapContent, img_fname: String,
+                                 imageWidth: Integer)
+{
+    var mapBounds: ReferencedEnvelope = null
+    var imageBounds: Rectangle = null
 
-    // convert the Styled Layer Descriptor XML to a GeoScript style
+    try {
+        mapBounds = map.getMaxBounds()
+        val map_heightToWidth = mapBounds.getSpan(1) / mapBounds.getSpan(0)
+	val imageHeight = round(imageWidth * map_heightToWidth).toInt
+        imageBounds = new Rectangle(0, 0, imageWidth, imageHeight)
 
-    val myStyle = org.geoscript.style.io.SLD.read(
-                       org.geoscript.io.Source.string(sldXML.mkString(" "))
-                  )
+    } catch {
+         case e: java.lang.Exception => {
+              System.err.println("Caught an exception: " + e.getMessage)
+              return
+         }
+    }
 
-    val frame = (1024, 1024)
-    val rectangle = new Rectangle(0, 0, 1024, 1024)
+    val image = new BufferedImage(imageBounds.width, imageBounds.height,
+                                  BufferedImage.TYPE_INT_RGB)
+
+    val gr = image.createGraphics()
+    gr.setPaint(Color.WHITE)
+    gr.fill(imageBounds)
+
+    val renderer = new StreamingRenderer()
+    renderer.setMapContent(map)
+
+    try {
+        renderer.paint(gr, imageBounds, mapBounds)
+        val dest_img_file = new File(img_fname)
+        ImageIO.write(image, "jpeg", dest_img_file)
+    } catch {
+         case e: IOException => {
+              System.err.println("Caught an IO exception: " + e.getMessage)
+              return
+         }
+    }
+}
+
+
+/*
+ * function: visualize_shapefile
+ *
+ * Visualize a shapefile instance.
+ *
+ * @param shp the ShapefileDataStore instance to visualize
+ */
+
+def visualize_shapefile(shp: ShapefileDataStore) {
+
+    val typeName = shp.getTypeNames()(0)
+    val featureSource = shp.getFeatureSource(typeName)
+
+    /*
+     * We use a "Line" Style as in:
+     *
+     *     http://docs.geotools.org/latest/tutorials/map/style.html
+     *
+     * because we know our shapefile is only of MultiLineStrings. This
+     * GeoTools URL above has examples how to create styles for other
+     * Geometries (Polygons, Points, etc).
+     */
+
+    val lnStyle = createLineStyle()
+    var envelope = featureSource.getBounds()
+
+    val layer = new FeatureLayer(featureSource, lnStyle)
+
+    val layers: Array[MapLayer] = new Array[MapLayer](1)
+    layers(0) = layer
+
+    val map = new MapContent()
+    map.addLayer(layer)
+
+    /* This code is throwing a run-time exception -in the ImageIO.write */
+    // save_map_content_to_jpeg_img(map, "test.jpg", 1024)
+
+    return;  // The next code in this procedure is being rewritten
 
     /* LatLon is precisely LatLon = lookupEPSG("EPSG:4326"),
      *    and "EPSG:4326" is "WGS 84", that is the coord-system we converted
@@ -262,7 +404,7 @@ def visualize_layer(layer: Layer) {
     //                                       LatLon),
     //                                       frame)
 
-    val viewport = Viewport.pad(layer.getBounds(), frame)
+    // val viewport = Viewport.pad(layer.getBounds(), frame)
 
     /*
      * // Save this layer of the shapefile as an image
@@ -275,7 +417,7 @@ def visualize_layer(layer: Layer) {
 
     // Try to display this layer
 
-    display(Seq(MapLayer(layer, myStyle)))
+    // display(Seq(MapLayer(layer, myStyle)))
 }
 
 
@@ -328,7 +470,7 @@ def dump_nyc_lion_street_db(location_LION_shapefile: String,
         if (save_to_shpfile != null) {
             // It is requested that that the results be saved to a shapefile
             result_shapefile = create_new_shapefile(save_to_shpfile,
-                                                    lion_shp.features.getSchema)
+                                                  lion_shp.features.getSchema)
             result_lion_feat = new DefaultFeatureCollection()
         }
     }
@@ -349,17 +491,10 @@ def dump_nyc_lion_street_db(location_LION_shapefile: String,
         } finally {
             result_shapefile.setIndexCreationEnabled(true)
         }
+        visualize_shapefile(result_shapefile)
     }
 
     return   // the visualization below is raising a run-time exception
-
-    /* While the dump of the NYC LION shapefile is ok (above), the drawing
-     * code below is failing by raising an exception, and needs to be fixed.
-     * plot_NYC_LION_Geodb.py in this repository is able to render it
-     * nevertheless.
-     */
-
-    // visualize_layer(lion_shp)
 }
 
 
@@ -375,6 +510,9 @@ def dump_nyc_lion_street_db(location_LION_shapefile: String,
  */
 
 def main(cmdl_args: Array[String]) {
+
+     // Logging.ALL.setLoggerFactory("org.geotools.util.logging.CommonsLoggerFactory")
+     // Logging.ALL.setLoggerFactory("org.geotools.util.logging.Log4JLoggerFactory")
 
      // Dump the New York City's Department of City Planning
      // LION GeoDB Single Line Street Base. The LION Street database should
