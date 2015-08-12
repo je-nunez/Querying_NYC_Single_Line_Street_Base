@@ -109,7 +109,7 @@ def main(shp_filename):
     """Main function."""
 
     if not os.path.isfile(shp_filename):
-        sys.stderr.write("File 'shp_filename' not found.\n")
+        sys.stderr.write("Shapefile '" + shp_filename + "' not found.\n")
         sys.exit(1)
 
     if shp_filename.endswith('.shp'):
